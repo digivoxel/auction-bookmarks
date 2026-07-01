@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auction Bookmark Manager</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f7f6f3; --surface: #ffffff; --border: #e2e0d8; --border-strong: #c8c5bb;
+    --text: #1a1917; --text-2: #5a5850; --text-3: #9a9890;
+    --accent-jb: #e07b2a; --accent-eb: #2a6fe0;
+    --danger: #c0392b; --danger-bg: #fdf0ee;
+    --success: #1a7a4a; --success-bg: #edf7f2;
+    --zero: #9a9890; --zero-bg: #f3f2ef;
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #181714; --surface: #232220; --border: #333128; --border-strong: #4a4840;
+      --text: #f0ede8; --text-2: #a8a59e; --text-3: #666360;
+      --danger-bg: #2a1a18; --success-bg: #162418; --zero-bg: #1e1d1a;
+    }
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+  header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  header p { font-size: 13px; color: var(--text-2); }
+  .tabs { display: flex; margin-left: auto; }
+  .tab { padding: 6px 14px; font-size: 13px; font-weight: 500; border: 1px solid var(--border-strong); background: var(--bg); color: var(--text-2); cursor: pointer; transition: all 0.15s; }
+  .tab:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .tab:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -1px; }
+  .tab.active-jb { background: var(--accent-jb); color: #fff; border-color: var(--accent-jb); }
+  .tab.active-eb { background: var(--accent-eb); color: #fff; border-color: var(--accent-eb); }
+  main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 1.25rem; }
+  .toolbar input[type="text"] { flex: 1; min-width: 180px; padding: 7px 11px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 14px; font-family: var(--font); }
+  .toolbar input[type="text"]:focus { outline: none; }
+  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 13px; font-family: var(--font); cursor: pointer; white-space: nowrap; transition: background 0.12s; text-decoration: none; }
+  .btn:hover { background: var(--bg); }
+  .btn-primary-jb { background: var(--accent-jb); color: #fff; border-color: var(--accent-jb); }
+  .btn-primary-jb:hover { background: #c86e22; }
+  .btn-primary-eb { background: var(--accent-eb); color: #fff; border-color: var(--accent-eb); }
+  .btn-primary-eb:hover { background: #2258b8; }
+  .stats { font-size: 12px; color: var(--text-3); margin-left: auto; }
+  .list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+  .item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+  .item:last-child { border-bottom: none; }
+  .item:hover { background: var(--bg); }
+  .item.zero-item { opacity: 0.5; }
+  .item a { flex: 1; font-size: 14px; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item a:hover { text-decoration: underline; }
+  .count-badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
+  .count-badge.has-results { background: var(--success-bg); color: var(--success); }
+  .count-badge.no-results { background: var(--zero-bg); color: var(--zero); }
+  .count-badge.unknown { display: none; }
+  .del-btn { background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 15px; padding: 3px 5px; border-radius: 4px; line-height: 1; flex-shrink: 0; }
+  .del-btn:hover { color: var(--danger); background: var(--danger-bg); }
+  .empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-3); font-size: 14px; }
+  .empty strong { display: block; color: var(--text-2); margin-bottom: 4px; font-size: 15px; }
+  .section-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin: 1.5rem 0 0.5rem; }
+  .add-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .add-row input { padding: 7px 11px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 14px; font-family: var(--font); }
+  .add-row input:first-child { flex: 0 0 180px; }
+  .add-row input:nth-child(2) { flex: 1; min-width: 200px; }
+  .zero-note { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+  .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); padding: 9px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 100; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .toast.success { background: var(--success-bg); color: var(--success); border: 1px solid #a3d9bc; }
+  .toast.error { background: var(--danger-bg); color: var(--danger); border: 1px solid #f0b0a8; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+  .dot-jb { background: var(--accent-jb); }
+  .dot-eb { background: var(--accent-eb); }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Auction Bookmark Manager</h1>
+    <p>Sync, manage, and export your saved searches</p>
+  </div>
+  <div class="tabs">
+    <button class="tab active-jb" onclick="switchTab('jb')" id="tab-jb">
+      <span class="dot dot-jb" style="display:inline-block;margin-right:5px;vertical-align:middle"></span>JustBid
+    </button>
+    <button class="tab" onclick="switchTab('eb')" id="tab-eb">
+      <span class="dot dot-eb" style="display:inline-block;margin-right:5px;vertical-align:middle"></span>Equip-Bid
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- JustBid Panel -->
+  <div class="panel active" id="panel-jb">
+    <div class="toolbar">
+      <input type="text" id="jb-filter" placeholder="Filter searches…" oninput="render('jb')">
+      <button class="btn" id="jb-sync-btn" onclick="syncJustBid()">⟳ Sync from JustBid</button>
+      <button class="btn btn-primary-jb" onclick="openAll('jb')">▶ Open all</button>
+      <button class="btn" onclick="exportBookmarks('jb')">↓ Export (skip zeros)</button>
+      <span class="stats" id="jb-stats"></span>
+    </div>
+    <div id="jb-list"></div>
+    <p class="section-label">Add manually</p>
+    <div class="add-row">
+      <input type="text" id="jb-name" placeholder="Search name">
+      <input type="text" id="jb-url" placeholder="https://justbid.com/items?search=…">
+      <button class="btn btn-primary-jb" onclick="addManual('jb')">+ Add</button>
+    </div>
+  </div>
+
+  <!-- Equip-Bid Panel -->
+  <div class="panel panel-eb" id="panel-eb">
+    <div class="toolbar">
+      <input type="text" id="eb-filter" placeholder="Filter searches…" oninput="render('eb')">
+      <button class="btn" id="eb-sync-btn" onclick="syncEquipBid()">⟳ Sync from Equip-Bid</button>
+      <button class="btn btn-primary-eb" onclick="openAll('eb')">▶ Open all</button>
+      <button class="btn" onclick="exportBookmarks('eb')">↓ Export (skip zeros)</button>
+      <span class="stats" id="eb-stats"></span>
+    </div>
+    <div id="eb-list"></div>
+    <p class="section-label">Add manually</p>
+    <div class="add-row">
+      <input type="text" id="eb-name" placeholder="Search name">
+      <input type="text" id="eb-url" placeholder="https://www.equip-bid.com/…">
+      <button class="btn btn-primary-eb" onclick="addManual('eb')">+ Add</button>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORE = {
+  jb: JSON.parse(localStorage.getItem('abm_jb') || '[]'),
+  eb: JSON.parse(localStorage.getItem('abm_eb') || '[]'),
+};
+
+let currentTab = 'jb';
+
+function save(site) { localStorage.setItem('abm_' + site, JSON.stringify(STORE[site])); }
+
+function switchTab(site) {
+  currentTab = site;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active-jb', 'active-eb'));
+  document.getElementById('panel-' + site).classList.add('active');
+  document.getElementById('tab-' + site).classList.add('active-' + site);
+}
+
+function render(site) {
+  const q = (document.getElementById(site + '-filter').value || '').toLowerCase();
+  const all = STORE[site];
+  const filtered = all.filter(s => s.name.toLowerCase().includes(q));
+  const wrap = document.getElementById(site + '-list');
+  const zeroCount = all.filter(s => s.count === 0).length;
+  const statsEl = document.getElementById(site + '-stats');
+  statsEl.textContent = all.length + ' searches' + (zeroCount ? ' · ' + zeroCount + ' empty' : '');
+
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="list"><div class="empty"><strong>' +
+      (all.length ? 'No matches' : 'No searches yet') + '</strong>' +
+      (all.length ? 'Try a different filter.' : 'Click Sync or add one manually.') +
+      '</div></div>';
+    return;
+  }
+
+  wrap.innerHTML = '<div class="list">' + filtered.map(s => {
+    const ri = all.indexOf(s);
+    const isZero = s.count === 0;
+    const hasCount = typeof s.count === 'number';
+    const badgeClass = !hasCount ? 'unknown' : (isZero ? 'no-results' : 'has-results');
+    const badgeText = !hasCount ? '' : (isZero ? '0' : s.count);
+    return `<div class="item${isZero ? ' zero-item' : ''}">
+      <a href="${s.url}" target="_blank">${s.name}</a>
+      <span class="count-badge ${badgeClass}" title="${isZero ? 'No results' : s.count + ' results'}">${badgeText}</span>
+      <button class="del-btn" onclick="del('${site}',${ri})" title="Remove">✕</button>
+    </div>`;
+  }).join('') + '</div>';
+
+  if (zeroCount > 0) {
+    wrap.innerHTML += '<p class="zero-note">↑ Grayed-out searches have 0 results and are skipped when exporting bookmarks.</p>';
+  }
+}
+
+function del(site, i) {
+  const name = STORE[site][i].name;
+  STORE[site].splice(i, 1);
+  save(site); render(site);
+  toast('Removed "' + name + '"');
+}
+
+function addManual(site) {
+  const name = document.getElementById(site + '-name').value.trim();
+  const url = document.getElementById(site + '-url').value.trim();
+  if (!name || !url) { toast('Enter both a name and URL', 'error'); return; }
+  if (STORE[site].find(s => s.url === url)) { toast('Already in your list', 'error'); return; }
+  STORE[site].push({ name, url, count: null });
+  save(site); render(site);
+  document.getElementById(site + '-name').value = '';
+  document.getElementById(site + '-url').value = '';
+  toast('Added "' + name + '"');
+}
+
+async function syncJustBid() {
+  const btn = document.getElementById('jb-sync-btn');
+  btn.innerHTML = '<span class="spinner"></span> Syncing…';
+  btn.disabled = true;
+  try {
+    const found = new Map();
+    let page = 1, hasMore = true;
+    while (hasMore) {
+      const res = await fetch('https://justbid.com/saved_searches?page=' + page);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const links = doc.querySelectorAll('a[href*="sav_id"]');
+      if (!links.length) break;
+      let newFound = 0;
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        const match = href.match(/sav_id=(\d+)/);
+        const nameMatch = href.match(/search=([^&]+)/);
+        const name = nameMatch ? decodeURIComponent(nameMatch[1]).replace(/\+/g, ' ') : 'Search';
+        if (match && !found.has(match[1])) {
+          found.set(match[1], { name, url: 'https://justbid.com' + href, count: null });
+          newFound++;
+        }
+      });
+      if (!newFound) break;
+      page++;
+      if (page > 20) break;
+    }
+    let added = 0, updated = 0;
+    found.forEach(s => {
+      const existing = STORE.jb.find(e => e.url === s.url);
+      if (!existing) { STORE.jb.push(s); added++; }
+    });
+    save('jb'); render('jb');
+    toast('Synced! ' + added + ' new searches added (' + found.size + ' total). Checking result counts…');
+    // Now check counts for any search that has null count
+    await checkJustBidCounts();
+  } catch(e) {
+    toast('Sync failed — make sure you are logged in to JustBid', 'error');
+  }
+  btn.innerHTML = '⟳ Sync from JustBid';
+  btn.disabled = false;
+}
+
+async function checkJustBidCounts() {
+  const toCheck = STORE.jb.filter(s => s.count === null);
+  if (!toCheck.length) return;
+  let checked = 0;
+  for (const s of toCheck) {
+    try {
+      const res = await fetch(s.url);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      // JustBid shows item count in various elements - try common patterns
+      const countEl = doc.querySelector('[class*="result-count"], [class*="total"], [class*="count"]');
+      const bodyText = doc.body ? doc.body.textContent : '';
+      // Look for patterns like "74 items" or "showing X of Y"
+      const countMatch = bodyText.match(/(\d+)\s+(?:items?|results?|lots?)/i);
+      // Also check if there are any item cards at all
+      const items = doc.querySelectorAll('[class*="item-card"], [class*="product"], [class*="lot"]');
+      if (countMatch) {
+        s.count = parseInt(countMatch[1], 10);
+      } else if (items.length > 0) {
+        s.count = items.length; // at least this many
+      } else {
+        s.count = 0;
+      }
+      checked++;
+      if (checked % 5 === 0) { save('jb'); render('jb'); } // update UI every 5
+      await new Promise(r => setTimeout(r, 200)); // be polite
+    } catch(e) { s.count = null; }
+  }
+  save('jb'); render('jb');
+  const zeros = STORE.jb.filter(s => s.count === 0).length;
+  toast('Count check done! ' + zeros + ' searches have 0 results and will be skipped on export.');
+}
+
+async function syncEquipBid() {
+  const btn = document.getElementById('eb-sync-btn');
+  btn.innerHTML = '<span class="spinner"></span> Syncing…';
+  btn.disabled = true;
+  try {
+    const found = new Map();
+    const res = await fetch('https://www.equip-bid.com/dashboard/saved-searches');
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    const EB_ZIP = '64114';
+    const EB_RADIUS = '25';
+
+    // Each row has a link + a result count in the last cell
+    const rows = doc.querySelectorAll('tr');
+    rows.forEach(row => {
+      const link = row.querySelector('a[href*="search_phrase"]');
+      if (!link) return;
+      const href = link.getAttribute('href');
+      const text = link.textContent.trim();
+      if (!href || !text || found.has(text)) return;
+      const phraseMatch = href.match(/search_phrase=([^&]+)/);
+      const phrase = phraseMatch ? phraseMatch[1] : encodeURIComponent(text);
+      const url = `https://www.equip-bid.com/auction/search?search_phrase=${phrase}&distance_radius=${EB_RADIUS}&distance_zip=${EB_ZIP}&status_field=open&lot_sort_field=relevancy&page=1`;
+      // Grab count from last <td> in the row
+      const cells = row.querySelectorAll('td');
+      const countCell = cells[cells.length - 1];
+      const countText = countCell ? countCell.textContent.trim() : '';
+      const count = countText !== '' ? parseInt(countText, 10) : null;
+      found.set(text, { name: text, url, count: isNaN(count) ? null : count });
+    });
+
+    let added = 0;
+    found.forEach(s => {
+      const existing = STORE.eb.find(e => e.name === s.name);
+      if (existing) {
+        existing.count = s.count; // always update count
+        existing.url = s.url;
+      } else {
+        STORE.eb.push(s); added++;
+      }
+    });
+    save('eb'); render('eb');
+    const zeros = STORE.eb.filter(s => s.count === 0).length;
+    if (found.size > 0) {
+      toast('Synced! ' + added + ' new · ' + zeros + ' with 0 results (skipped on export)');
+    } else {
+      toast('No searches found — make sure you are logged in to Equip-Bid', 'error');
+    }
+  } catch(e) {
+    toast('Sync failed — make sure you are logged in to Equip-Bid', 'error');
+  }
+  btn.innerHTML = '⟳ Sync from Equip-Bid';
+  btn.disabled = false;
+}
+
+function openAll(site) {
+  const valid = STORE[site].filter(s => s.count !== 0);
+  if (!valid.length) { toast('No searches with results to open', 'error'); return; }
+  // Open in batches of 10 with small delay to avoid browser blocking
+  valid.forEach((s, i) => setTimeout(() => window.open(s.url, '_blank'), i * 150));
+  toast('Opening ' + valid.length + ' tabs' + (STORE[site].length - valid.length ? ' · skipped ' + (STORE[site].length - valid.length) + ' empty' : '') + '…');
+}
+
+function exportBookmarks(site) {
+  const all = STORE[site];
+  // Skip searches with confirmed 0 results
+  const searches = all.filter(s => s.count !== 0);
+  const skipped = all.length - searches.length;
+  if (!searches.length) { toast('No searches to export', 'error'); return; }
+  const siteName = site === 'jb' ? 'JustBid' : 'Equip-Bid';
+  let html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+<DT><H3>${siteName} Saved Searches</H3>
+<DL><p>`;
+  searches.forEach(s => { html += `\n<DT><A HREF="${s.url}">${s.name}</A>`; });
+  html += `\n</DL><p>\n</DL>`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  a.download = site + '_searches.html';
+  a.click();
+  toast('Exported ' + searches.length + ' searches' + (skipped ? ' · skipped ' + skipped + ' with 0 results' : ''));
+}
+
+let toastTimer;
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+render('jb');
+render('eb');
+</script>
+</body>
+</html>
