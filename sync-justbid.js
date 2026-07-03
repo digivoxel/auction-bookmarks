@@ -1,15 +1,11 @@
 // ============================================================
-// JustBid Saved Search Sync Script
+// JustBid Search Panel Snippet
 // ============================================================
 // HOW TO USE:
-// 1. Go to justbid.com and log in
+// 1. Go to justbid.com (while logged in)
 // 2. Open DevTools console (F12)
-// 3. Paste and run this script
-// 4. Copy the JSON output that appears in the console
-// 5. Go to your bookmark manager (digivoxel.github.io/auction-bookmarks)
-// 6. Open console (F12) and run:
-//    localStorage.setItem('abm_jb', `PASTE_YOUR_JSON_HERE`);
-//    location.reload();
+// 3. Run this snippet
+// A sidebar will appear with all your saved searches as clickable links
 // ============================================================
 
 (async () => {
@@ -24,21 +20,21 @@
     if (!links.length) break;
     let newFound = 0;
     links.forEach(link => {
-      const href = link.getAttribute('href');
-      const match = href.match(/sav_id=(\d+)/);
-      const nameMatch = href.match(/search=([^&]+)/);
-      const name = nameMatch ? decodeURIComponent(nameMatch[1]).replace(/\+/g, ' ') : 'Search';
+      const match = link.getAttribute('href').match(/sav_id=(\d+)/);
       if (match && !found.has(match[1])) {
-        found.set(match[1], { name, url: 'https://justbid.com' + href, count: null });
+        found.set(match[1], { name: link.textContent.trim(), href: link.getAttribute('href') });
         newFound++;
       }
     });
     if (!newFound) break;
-    page++;
-    if (page > 20) break;
+    page++; if (page > 20) break;
   }
 
-  localStorage.setItem('abm_jb', JSON.stringify([...found.values()]));
-  console.log('✅ Saved ' + found.size + ' searches! Copy the JSON below and paste into the bookmark manager console.');
-  console.log(localStorage.getItem('abm_jb'));
+  const div = document.createElement('div');
+  div.style = 'position:fixed;top:0;right:0;bottom:0;width:280px;background:#fff;z-index:99999;overflow-y:auto;border-left:2px solid #e07b2a;padding:10px;box-shadow:-4px 0 12px rgba(0,0,0,0.15)';
+  div.innerHTML = '<h3 style="margin:0 0 10px;font-size:14px;color:#e07b2a">All Saved Searches (' + found.size + ')</h3>' +
+    [...found.values()].map(s =>
+      `<a href="${s.href}" style="display:block;padding:6px 8px;margin-bottom:4px;background:#f7f6f3;border-radius:4px;text-decoration:none;color:#1a1917;font-size:13px">${s.name}</a>`
+    ).join('');
+  document.body.appendChild(div);
 })();

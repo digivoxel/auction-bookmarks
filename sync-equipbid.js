@@ -1,15 +1,12 @@
 // ============================================================
-// Equip-Bid Saved Search Sync Script
+// Equip-Bid Open All Snippet
 // ============================================================
 // HOW TO USE:
-// 1. Go to equip-bid.com and log in
+// 1. Go to equip-bid.com (while logged in)
 // 2. Open DevTools console (F12)
-// 3. Paste and run this script
-// 4. Copy the JSON output that appears in the console
-// 5. Go to your bookmark manager (digivoxel.github.io/auction-bookmarks)
-// 6. Open console (F12) and run:
-//    localStorage.setItem('abm_eb', `PASTE_YOUR_JSON_HERE`);
-//    location.reload();
+// 3. Run this snippet
+// It will open a new tab for every saved search with results > 0
+// Searches with 0 results are automatically skipped
 // ============================================================
 
 (async () => {
@@ -35,10 +32,9 @@
     const cells = row.querySelectorAll('td');
     const countText = cells[cells.length - 1] ? cells[cells.length - 1].textContent.trim() : '';
     const count = parseInt(countText, 10);
-    searches.push({ name: text, url, count: isNaN(count) ? null : count });
+    if (!isNaN(count) && count > 0) searches.push({ name: text, url, count });
   });
 
-  localStorage.setItem('abm_eb', JSON.stringify(searches));
-  console.log('✅ Saved ' + searches.length + ' searches! Copy the JSON below and paste into the bookmark manager console.');
-  console.log(localStorage.getItem('abm_eb'));
+  console.log('Opening ' + searches.length + ' searches with results...');
+  searches.forEach((s, i) => setTimeout(() => window.open(s.url, '_blank'), i * 400));
 })();
